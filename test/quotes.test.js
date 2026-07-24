@@ -41,13 +41,38 @@ test('candlesFor неизвестного диапазона падает на 1
   assert.equal(candlesFor('AAPL', 'zzz', T).length, 24);
 });
 
-test('dividendsFor: дивидендная бумага → 1 событие, недивидендная → пусто', () => {
+test('candlesFor: регистр диапазона не важен (1M == 1m, а не молча суточный)', () => {
+  // Регресс: раньше RANGE_PARAMS искался по точному ключу, поэтому '1M'
+  // проваливался в фолбэк '1d' и годовой график молча показывал сутки.
+  assert.equal(candlesFor('AAPL', '1M', T).length, candlesFor('AAPL', '1m', T).length);
+  assert.equal(candlesFor('AAPL', '1Y', T).length, candlesFor('AAPL', '1y', T).length);
+  assert.equal(candlesFor('AAPL', '1W', T).length, 28);
+});
+
+test('dividendsFor: календарь якорный — отдаёт прошедшую и следующую выплату', () => {
+  // Регресс на баг ночи 25.07.2026: раньше ex-date считалась как now+5..40
+  // дней при КАЖДОМ запросе, поэтому отсечка вечно убегала вперёд и в
+  // приложении (условие exDate <= now) дивиденды не начислялись НИ РАЗУ.
   const d = dividendsFor('AAPL', T);
-  assert.equal(d.length, 1);
+  assert.ok(d.length >= 1);
   assert.equal(d[0].symbol, 'AAPL');
   assert.ok(Number.isInteger(d[0].perShareCents) && d[0].perShareCents > 0);
   assert.match(d[0].exDate, /^\d{4}-\d{2}-\d{2}$/);
+  // Хотя бы одна отсечка должна быть УЖЕ в прошлом — иначе начислять нечего.
+  const past = d.filter((x) => Date.parse(x.exDate) <= T);
+  assert.ok(past.length >= 1, 'нет ни одной прошедшей отсечки');
+  // payDate всегда позже exDate.
+  for (const x of d) assert.ok(Date.parse(x.payDate) > Date.parse(x.exDate));
   assert.deepEqual(dividendsFor('NVDA', T), []);
+});
+
+test('dividendsFor: даты не зависят от момента запроса (якорь, а не «сейчас»)', () => {
+  const morning = dividendsFor('AAPL', Date.UTC(2026, 6, 24, 6, 0, 0));
+  const evening = dividendsFor('AAPL', Date.UTC(2026, 6, 24, 22, 0, 0));
+  assert.deepEqual(
+    morning.map((x) => x.exDate),
+    evening.map((x) => x.exDate),
+  );
 });
 
 test('isMarketOpen: крипта всегда открыта, акции — не в выходные', () => {

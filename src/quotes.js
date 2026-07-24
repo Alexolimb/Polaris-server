@@ -127,7 +127,12 @@ const RANGE_PARAMS = {
 // Свечи для символа на диапазоне. Каждая свеча строится из цены на её конце и
 // начале, с небольшими тенями из под-шума. Всё в центах (int). Отсортированы по t.
 export function candlesFor(symbol, range, now = Date.now()) {
-  const p = RANGE_PARAMS[range] ?? RANGE_PARAMS['1d'];
+  // Регистр приводим сами: приложение шлёт '1d', но любой другой клиент
+  // (или ручной запрос) легко пришлёт '1D' — и раньше это МОЛЧА отдавало
+  // суточный график под видом годового. Проверено на живом бэкенде:
+  // ?range=1Y возвращал те же 24 часовые свечи, что и ?range=1d.
+  const key = typeof range === 'string' ? range.toLowerCase() : '';
+  const p = RANGE_PARAMS[key] ?? RANGE_PARAMS['1d'];
   const seed = hashSymbol(symbol);
   const out = [];
   for (let i = p.count - 1; i >= 0; i--) {
@@ -146,22 +151,49 @@ export function candlesFor(symbol, range, now = Date.now()) {
   return out;
 }
 
-// Ближайшая дивидендная выплата (синтетическая) — только для дивидендных бумаг.
+// Дивидендный календарь — ЯКОРНЫЙ, а не «от сейчас».
+//
+// Так было раньше: exDate = now + (5..40 дней), и дата пересчитывалась при
+// КАЖДОМ запросе. То есть отсечка вечно убегала вперёд и не наступала никогда,
+// а приложение начисляет выплату только когда `exDate <= now`
+// (portfolio_state.applyDueDividends). Итог: дивиденды — заявленная фича
+// продукта — не начислялись НИ РАЗУ, тумблер уведомления был мёртвым, а целый
+// раздел движка работал только в юнит-тестах.
+//
+// Теперь сетка привязана к фиксированной эпохе: у каждого символа свой
+// стабильный сдвиг внутри квартала, даты не зависят от момента запроса.
+// Отдаём и ПРОШЕДШУЮ выплату (её можно начислить), и следующую (её можно
+// показать в календаре).
+const DIVIDEND_EPOCH_MS = Date.UTC(2026, 0, 1); // 1 января 2026, якорь сетки
+const QUARTER_DAYS = 91;
+
 export function dividendsFor(symbol, now = Date.now()) {
   if (!DIVIDEND_SYMBOLS.has(symbol)) return [];
   const seed = hashSymbol(symbol);
-  const daysToEx = 5 + Math.floor(rand01(seed + 101) * 35); // 5..40 дней
-  const exDate = new Date(now + daysToEx * 24 * HOUR_MS);
-  const payDate = new Date(exDate.getTime() + 7 * 24 * HOUR_MS);
-  const perShareCents = Math.max(1, Math.round(basePrice(symbol) * 0.004 * (0.6 + rand01(seed + 202))));
-  return [
-    {
+  // Сдвиг символа внутри квартала — стабильный, из сида.
+  const offsetDays = Math.floor(rand01(seed + 101) * QUARTER_DAYS);
+  const stepMs = QUARTER_DAYS * 24 * HOUR_MS;
+  const anchorMs = DIVIDEND_EPOCH_MS + offsetDays * 24 * HOUR_MS;
+  // Номер последней отсечки, которая уже наступила.
+  const k = Math.floor((now - anchorMs) / stepMs);
+  const perShareCents = Math.max(
+    1,
+    Math.round(basePrice(symbol) * 0.004 * (0.6 + rand01(seed + 202))),
+  );
+  const make = (i) => {
+    const ex = new Date(anchorMs + i * stepMs);
+    const pay = new Date(ex.getTime() + 7 * 24 * HOUR_MS);
+    return {
       symbol,
-      exDate: exDate.toISOString().slice(0, 10),
-      payDate: payDate.toISOString().slice(0, 10),
+      exDate: ex.toISOString().slice(0, 10),
+      payDate: pay.toISOString().slice(0, 10),
       perShareCents,
-    },
-  ];
+    };
+  };
+  const out = [];
+  if (k >= 0) out.push(make(k)); // последняя прошедшая — её начислят
+  out.push(make(k + 1)); // следующая — для календаря
+  return out;
 }
 
 // --- Точка расширения на реальный провайдер --------------------------------

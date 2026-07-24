@@ -65,10 +65,18 @@ test('GET /v1/candles без symbol → 400', async () => {
   assert.equal(r.status, 400);
 });
 
-test('GET /v1/dividends: AAPL → 1, NVDA → 0', async () => {
+test('GET /v1/dividends: AAPL → есть прошедшая выплата, NVDA → 0', async () => {
   const a = await (await fetch(`${base}/v1/dividends?symbol=AAPL`)).json();
   const n = await (await fetch(`${base}/v1/dividends?symbol=NVDA`)).json();
-  assert.equal(a.dividends.length, 1);
+  // Календарь якорный: отдаём последнюю прошедшую отсечку (её приложение
+  // начислит) и следующую (для календаря). Раньше была только будущая —
+  // из-за этого дивиденды не начислялись никогда.
+  assert.ok(a.dividends.length >= 1);
+  const now = Date.now();
+  assert.ok(
+    a.dividends.some((d) => Date.parse(d.exDate) <= now),
+    'нет ни одной прошедшей отсечки',
+  );
   assert.equal(n.dividends.length, 0);
 });
 
