@@ -29,11 +29,13 @@ function portfolioSummary(portfolio) {
   }
   const positions = portfolio.positions;
   if (Array.isArray(positions) && positions.length) {
+    // filter: тело запроса — произвольный JSON, элемент может быть null.
     const items = positions
+      .filter((p) => p && typeof p === 'object')
       .slice(0, 12)
-      .map((p) => `${p.symbol}×${p.qty}`)
+      .map((p) => `${p.symbol ?? '?'}×${p.qty ?? 0}`)
       .join(', ');
-    parts.push(`holdings: ${items}`);
+    if (items) parts.push(`holdings: ${items}`);
   }
   return parts.length ? `\nUser's virtual portfolio — ${parts.join('; ')}.` : '';
 }
