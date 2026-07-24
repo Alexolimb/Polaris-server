@@ -1,0 +1,14 @@
+{
+  "name": "polaris-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Бэкенд Polaris (контракт v1): рыночные данные (synthetic) + AI-наставник Cosmo на бесплатной Groq. Ноль внешних зависимостей.",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test"
+  }
+}
