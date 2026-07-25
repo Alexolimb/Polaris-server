@@ -75,6 +75,24 @@ test('dividendsFor: даты не зависят от момента запро�
   );
 });
 
+test('isMarketOpen: сессия считается по Нью-Йорку и ЗИМОЙ тоже', () => {
+  // Регресс: часы были зашиты как 13:30-20:00 UTC — это верно только для
+  // летнего EDT. Зимой (EST) сессия идёт 14:30-21:00 UTC, и полгода индикатор
+  // «рынок открыт» врал на час.
+  // Зима: 15 января 2027 (чт). 14:00 UTC = 09:00 NY — ещё закрыто.
+  assert.equal(isMarketOpen('AAPL', Date.UTC(2027, 0, 15, 14, 0, 0)), false);
+  // 15:00 UTC = 10:00 NY — открыто.
+  assert.equal(isMarketOpen('AAPL', Date.UTC(2027, 0, 15, 15, 0, 0)), true);
+  // 21:30 UTC = 16:30 NY — уже закрыто.
+  assert.equal(isMarketOpen('AAPL', Date.UTC(2027, 0, 15, 21, 30, 0)), false);
+  // Лето: 15 июля 2026 (ср). 13:45 UTC = 09:45 NY — открыто.
+  assert.equal(isMarketOpen('AAPL', Date.UTC(2026, 6, 15, 13, 45, 0)), true);
+  // 20:30 UTC = 16:30 NY — закрыто.
+  assert.equal(isMarketOpen('AAPL', Date.UTC(2026, 6, 15, 20, 30, 0)), false);
+  // Крипта — круглосуточно, в любой сезон.
+  assert.equal(isMarketOpen('BTC', Date.UTC(2027, 0, 15, 3, 0, 0)), true);
+});
+
 test('isMarketOpen: крипта всегда открыта, акции — не в выходные', () => {
   const saturday = Date.UTC(2026, 6, 25, 15, 0, 0);
   assert.equal(isMarketOpen('BTC', saturday), true);

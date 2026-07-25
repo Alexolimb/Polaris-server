@@ -19,6 +19,22 @@ function fakeJsonResponse(obj, ok = true, status = 200) {
   return { ok, status, json: async () => obj, text: async () => JSON.stringify(obj) };
 }
 
+test('buildSystemPrompt: кэш игрока читается из cash_usd (так шлёт приложение)', () => {
+  // Регресс: сервер читал только portfolio.cashCents, а приложение шлёт
+  // cash_usd строкой — из-за рассинхрона строка про деньги НИКОГДА не
+  // попадала в промпт, и Cosmo не знал, сколько у игрока свободных средств.
+  const s = buildSystemPrompt('en', { cash_usd: '9500.00', positions: [] });
+  assert.match(s, /cash \$9500\.00/);
+  // число тоже принимаем
+  assert.match(buildSystemPrompt('en', { cash_usd: 12.5 }), /cash \$12\.50/);
+  // старый контракт продолжает работать
+  assert.match(buildSystemPrompt('en', { cashCents: 500000 }), /cash \$5000\.00/);
+  // мусор не превращается в «cash $NaN»
+  for (const bad of ['', 'abc', NaN, Infinity, -5]) {
+    assert.doesNotMatch(buildSystemPrompt('en', { cash_usd: bad }), /cash \$/);
+  }
+});
+
 test('buildSystemPrompt: язык и ключевые правила', () => {
   const ru = buildSystemPrompt('ru', null);
   assert.match(ru, /Russian/);

@@ -88,15 +88,71 @@ export function priceCentsAt(symbol, timeMs) {
 
 // --- Публичные функции эндпоинтов -----------------------------------------
 
-// Рынок открыт? Крипта — всегда; акции/ETF — будни, 13:30–20:00 UTC (≈ NYSE).
+// Нью-йоркское время (день недели + минуты от полуночи) без сторонних
+// библиотек. Раньше часы биржи были зашиты как 13:30–20:00 UTC — это верно
+// только для ЛЕТНЕГО EDT, а зимой (EST) сессия идёт 14:30–21:00 UTC, то есть
+// полгода индикатор «рынок открыт» врал на час. Intl знает правила перехода
+// на летнее время и входит в стандартную библиотеку — зависимостей не добавляет.
+const DAY_INDEX = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+function newYorkParts(now) {
+  try {
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      weekday: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    const p = {};
+    for (const { type, value } of fmt.formatToParts(new Date(now))) {
+      p[type] = value;
+    }
+    const day = DAY_INDEX[p.weekday];
+    // hour12:false в некоторых движках отдаёт «24» для полуночи.
+    const hour = Number(p.hour) % 24;
+    const minute = Number(p.minute);
+    if (day === undefined || !Number.isFinite(hour) || !Number.isFinite(minute)) {
+      return null;
+    }
+    return { day, mins: hour * 60 + minute };
+  } catch {
+    return null; // сборка Node без данных о часовых поясах
+  }
+}
+
+// Рынок открыт? Крипта — всегда; акции/ETF/валюты — будни, 09:30–16:00
+// по Нью-Йорку. Праздники биржи не учитываем (данные всё равно учебные).
 export function isMarketOpen(symbol, now) {
   const a = ASSET_BY_SYMBOL[symbol];
   if (a && a.type === 'crypto') return true;
+  const ny = newYorkParts(now);
+  if (ny) {
+    if (ny.day === 0 || ny.day === 6) return false;
+    return ny.mins >= 9 * 60 + 30 && ny.mins < 16 * 60;
+  }
+  // Фолбэк без Intl: считаем летнее время по правилу США (2-е воскресенье
+  // марта — 1-е воскресенье ноября) и смещаем окно UTC на час.
   const d = new Date(now);
-  const day = d.getUTCDay(); // 0=вс, 6=сб
+  const day = d.getUTCDay();
   if (day === 0 || day === 6) return false;
+  const openUtcMins = (isUsDstApprox(d) ? 13 : 14) * 60 + 30;
   const mins = d.getUTCHours() * 60 + d.getUTCMinutes();
-  return mins >= 13 * 60 + 30 && mins < 20 * 60;
+  return mins >= openUtcMins && mins < openUtcMins + 6 * 60 + 30;
+}
+
+// Грубая проверка летнего времени США — только для фолбэка выше.
+function isUsDstApprox(d) {
+  const y = d.getUTCFullYear();
+  const secondSundayOfMarch = nthSundayUtc(y, 2, 2);
+  const firstSundayOfNovember = nthSundayUtc(y, 10, 1);
+  return d >= secondSundayOfMarch && d < firstSundayOfNovember;
+}
+
+function nthSundayUtc(year, monthIndex, n) {
+  const first = new Date(Date.UTC(year, monthIndex, 1));
+  const shift = (7 - first.getUTCDay()) % 7; // до первого воскресенья
+  return new Date(Date.UTC(year, monthIndex, 1 + shift + (n - 1) * 7, 7));
 }
 
 // Котировка: текущая цена + вчерашнее закрытие (для %-изменения на карточке).

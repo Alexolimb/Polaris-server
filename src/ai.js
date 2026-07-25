@@ -20,13 +20,34 @@ function langName(lang) {
   return lang === 'ru' ? 'Russian' : lang === 'es' ? 'Spanish' : 'English';
 }
 
+/// Свободные деньги игрока в долларах. Терпим к обоим полям контракта:
+/// `cash_usd` (строка или число — так шлёт приложение) и `cashCents` (int).
+/// Мусор (NaN, Infinity, отрицательное, нечисловая строка) считаем «не задано»,
+/// чтобы в промпт не уехало «cash $NaN».
+function cashUsd(portfolio) {
+  const raw = portfolio.cash_usd;
+  if (raw != null) {
+    const v = typeof raw === 'number' ? raw : Number.parseFloat(String(raw));
+    if (Number.isFinite(v) && v >= 0) return v;
+  }
+  const cents = portfolio.cashCents;
+  if (typeof cents === 'number' && Number.isFinite(cents) && cents >= 0) {
+    return cents / 100;
+  }
+  return null;
+}
+
 // Компактная сводка портфеля в промпт — чтобы Cosmo мог ссылаться на позиции.
 function portfolioSummary(portfolio) {
   if (!portfolio || typeof portfolio !== 'object') return '';
   const parts = [];
-  if (portfolio.cashCents != null) {
-    parts.push(`cash $${(portfolio.cashCents / 100).toFixed(2)}`);
-  }
+  // Приложение шлёт `cash_usd` строкой ("9500.00"), а сервер читал только
+  // `cashCents` — из-за этого рассинхрона строка про деньги НИКОГДА не
+  // попадала в промпт, и Cosmo не знал, сколько у игрока свободных средств.
+  // Принимаем оба варианта: contract v1 у приложения не меняем, а старые
+  // клиенты с cashCents продолжают работать.
+  const cash = cashUsd(portfolio);
+  if (cash != null) parts.push(`cash $${cash.toFixed(2)}`);
   const positions = portfolio.positions;
   if (Array.isArray(positions) && positions.length) {
     // filter: тело запроса — произвольный JSON, элемент может быть null.
