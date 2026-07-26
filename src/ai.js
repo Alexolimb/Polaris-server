@@ -14,6 +14,12 @@
 export const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 export const DEFAULT_MODEL = 'llama-3.3-70b-versatile';
 
+// Рамки одного обращения к Cosmo (аудит 25.07.2026): потолок ответа и потолок
+// входа. Экспортируем — тесты проверяют, что они реально уходят в Groq.
+export const MAX_CHAT_TOKENS = 700;
+export const MAX_HISTORY_MESSAGES = 20;
+export const MAX_MESSAGE_CHARS = 4000;
+
 // --- Личность и правила Cosmo ---------------------------------------------
 
 function langName(lang) {
@@ -123,13 +129,22 @@ export async function* streamCosmoChat(
   const history = Array.isArray(messages)
     ? messages
         .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
-        .map((m) => ({ role: m.role, content: m.content }))
+        // Обрезаем размер входа: тело запроса ограничено 256 КБ, и без этих
+        // рамок один запрос мог протащить в Groq всю квоту разом. Приложение
+        // шлёт короткую переписку и в лимиты укладывается с запасом.
+        .slice(-MAX_HISTORY_MESSAGES)
+        .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_MESSAGE_CHARS) }))
     : [];
 
   const body = JSON.stringify({
     model,
     stream: true,
     temperature: 0.6,
+    // Потолок ответа. Раньше его не было вовсе (у commentOnTrade стоял 120):
+    // модель могла молотить до своего максимума на каждый запрос, а платит за
+    // это бесплатная квота Алекса. 700 токенов — это уверенно больше, чем
+    // «2–5 предложений» из системного промпта, даже для развёрнутого разбора.
+    max_tokens: MAX_CHAT_TOKENS,
     messages: [{ role: 'system', content: buildSystemPrompt(lang, portfolio) }, ...history],
   });
 

@@ -9,7 +9,13 @@
 //
 // Всё в ЦЕНТАХ (int) — как во всём контракте v1 и в моделях приложения.
 
-import { BASE_PRICE_CENTS, ASSET_BY_SYMBOL, DIVIDEND_SYMBOLS } from './catalog.js';
+import {
+  BASE_PRICE_CENTS,
+  ASSET_BY_SYMBOL,
+  DIVIDEND_SYMBOLS,
+  DIVIDEND_PER_SHARE_CENTS,
+  isKnownSymbol,
+} from './catalog.js';
 
 // --- Детерминированный шум -------------------------------------------------
 
@@ -71,8 +77,25 @@ function amplitudeFor(symbol) {
   return 0.12; // акции
 }
 
+// Базовая цена. Раньше здесь стоял дефолт `?? 10000`, и это была ложь в
+// продукте про деньги: движок выдумывал «настоящую» цену ЛЮБОЙ строке —
+// проверено вживую, ?symbol=NOTAREALTICKER123 возвращал $101.24. Опечатка в
+// тикере выглядела как реальная бумага. Теперь неизвестный символ — ошибка:
+// функции ниже бросают UnknownSymbolError, а server.js отвечает 404.
 function basePrice(symbol) {
-  return BASE_PRICE_CENTS[symbol] ?? 10000; // дефолт $100 для неизвестных
+  const base = BASE_PRICE_CENTS[symbol];
+  if (base === undefined) throw new UnknownSymbolError(symbol);
+  return base;
+}
+
+/** Символа нет в каталоге. server.js превращает это в HTTP 404. */
+export class UnknownSymbolError extends Error {
+  constructor(symbol) {
+    super(`unknown symbol: ${symbol}`);
+    this.name = 'UnknownSymbolError';
+    this.symbol = symbol;
+    this.status = 404;
+  }
 }
 
 // Цена символа в момент timeMs (в центах, int, всегда > 0).
@@ -168,8 +191,20 @@ export function quoteFor(symbol, now = Date.now()) {
   };
 }
 
+// Пачка котировок. Неизвестные символы МОЛЧА пропускаем (их список сервер
+// вернёт отдельным полем `unknown`) — так один опечатанный тикер в запросе
+// не роняет весь экран «Рынки», но и не получает выдуманную цену.
 export function quotesFor(symbols, now = Date.now()) {
-  return symbols.map((s) => quoteFor(s, now));
+  const out = [];
+  for (const s of symbols) {
+    if (isKnownSymbol(s)) out.push(quoteFor(s, now));
+  }
+  return out;
+}
+
+/** Символы из запроса, которых нет в каталоге. */
+export function unknownSymbols(symbols) {
+  return symbols.filter((s) => !isKnownSymbol(s));
 }
 
 // Параметры свечей на диапазон: сколько точек и шаг между ними.
@@ -224,6 +259,9 @@ const DIVIDEND_EPOCH_MS = Date.UTC(2026, 0, 1); // 1 января 2026, якор
 const QUARTER_DAYS = 91;
 
 export function dividendsFor(symbol, now = Date.now()) {
+  // Неизвестный тикер — честная ошибка (см. UnknownSymbolError выше);
+  // известный, но бездивидендный (NVDA, BTC…) — пустой список, это норма.
+  if (!isKnownSymbol(symbol)) throw new UnknownSymbolError(symbol);
   if (!DIVIDEND_SYMBOLS.has(symbol)) return [];
   const seed = hashSymbol(symbol);
   // Сдвиг символа внутри квартала — стабильный, из сида.
@@ -232,10 +270,10 @@ export function dividendsFor(symbol, now = Date.now()) {
   const anchorMs = DIVIDEND_EPOCH_MS + offsetDays * 24 * HOUR_MS;
   // Номер последней отсечки, которая уже наступила.
   const k = Math.floor((now - anchorMs) / stepMs);
-  const perShareCents = Math.max(
-    1,
-    Math.round(basePrice(symbol) * 0.004 * (0.6 + rand01(seed + 202))),
-  );
+  // Сумма выплаты — из канона (data/market_base.json), а НЕ «0.4% от цены с
+  // подмешанным шумом»: иначе за одну и ту же отсечку сервер и офлайн-режим
+  // приложения начисляли игроку разные деньги.
+  const perShareCents = DIVIDEND_PER_SHARE_CENTS[symbol];
   const make = (i) => {
     const ex = new Date(anchorMs + i * stepMs);
     const pay = new Date(ex.getTime() + 7 * 24 * HOUR_MS);

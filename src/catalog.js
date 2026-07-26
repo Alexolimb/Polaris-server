@@ -5,54 +5,72 @@
 // по темам-подборкам (чипы на экране «Рынок»). Цены/свечи к этим символам
 // выдаёт quotes.js (синтетический движок либо реальный провайдер).
 //
+// ВАЖНО (аудит 25.07.2026): сам список и цены здесь БОЛЬШЕ НЕ ЗАШИТЫ. Они
+// читаются из data/market_base.json — единственного источника правды, из
+// которого генерируется и офлайн-набор приложения (app/lib/services/
+// market_base.g.dart). Раньше таблицы жили в двух местах и разъехались:
+// у сервера BTC стоил $68 000, у приложения $118 420, а SOL/NFLX/ADA сервер
+// вообще не знал и подставлял им дефолтные $100 — портфель прыгал на десятки
+// процентов при переключении онлайн↔офлайн. Для учебного продукта, который
+// учит доверять цифрам, это было недопустимо.
+//
 // Формат ответа сервера (см. app/lib/services/api.dart, fetchCatalog):
 //   { "assets": [{symbol,name,type,currency,themes[],sector,freshness}],
 //     "themes": [{id,title}] }
 
-export const THEMES = [
-  { id: 'bigtech', title: 'Большие технологии' },
-  { id: 'ai', title: 'Искусственный интеллект' },
-  { id: 'dividends', title: 'Дивидендные гиганты' },
-  { id: 'etf', title: 'Фонды (ETF)' },
-  { id: 'energy', title: 'Энергетика' },
-  { id: 'crypto', title: 'Криптовалюты' },
-];
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
-// freshness: 'realtime' | 'delayed' | 'demo' — честная метка происхождения цены.
-// На синтетическом движке ставим 'demo'; при реальном провайдере quotes.js
-// переопределит на 'delayed'/'realtime'. type: 'stock' | 'etf' | 'crypto'.
-export const ASSETS = [
-  { symbol: 'AAPL', name: 'Apple Inc.',            type: 'stock', currency: 'USD', themes: ['bigtech', 'dividends'], sector: 'Technology' },
-  { symbol: 'MSFT', name: 'Microsoft Corp.',       type: 'stock', currency: 'USD', themes: ['bigtech', 'ai', 'dividends'], sector: 'Technology' },
-  { symbol: 'GOOGL', name: 'Alphabet Inc.',        type: 'stock', currency: 'USD', themes: ['bigtech', 'ai'], sector: 'Communication' },
-  { symbol: 'AMZN', name: 'Amazon.com Inc.',       type: 'stock', currency: 'USD', themes: ['bigtech'], sector: 'Consumer' },
-  { symbol: 'NVDA', name: 'NVIDIA Corp.',          type: 'stock', currency: 'USD', themes: ['bigtech', 'ai'], sector: 'Technology' },
-  { symbol: 'META', name: 'Meta Platforms Inc.',   type: 'stock', currency: 'USD', themes: ['bigtech', 'ai'], sector: 'Communication' },
-  { symbol: 'TSLA', name: 'Tesla Inc.',            type: 'stock', currency: 'USD', themes: ['bigtech', 'energy'], sector: 'Automotive' },
-  { symbol: 'AMD',  name: 'Advanced Micro Devices', type: 'stock', currency: 'USD', themes: ['ai'], sector: 'Technology' },
-  { symbol: 'KO',   name: 'The Coca-Cola Company', type: 'stock', currency: 'USD', themes: ['dividends'], sector: 'Consumer' },
-  { symbol: 'JNJ',  name: 'Johnson & Johnson',     type: 'stock', currency: 'USD', themes: ['dividends'], sector: 'Healthcare' },
-  { symbol: 'PG',   name: 'Procter & Gamble',      type: 'stock', currency: 'USD', themes: ['dividends'], sector: 'Consumer' },
-  { symbol: 'XOM',  name: 'Exxon Mobil Corp.',     type: 'stock', currency: 'USD', themes: ['energy', 'dividends'], sector: 'Energy' },
-  { symbol: 'CVX',  name: 'Chevron Corp.',         type: 'stock', currency: 'USD', themes: ['energy', 'dividends'], sector: 'Energy' },
-  { symbol: 'SPY',  name: 'S&P 500 ETF',           type: 'etf',   currency: 'USD', themes: ['etf'], sector: 'Index' },
-  { symbol: 'QQQ',  name: 'Nasdaq-100 ETF',        type: 'etf',   currency: 'USD', themes: ['etf', 'bigtech'], sector: 'Index' },
-  { symbol: 'VOO',  name: 'Vanguard S&P 500 ETF',  type: 'etf',   currency: 'USD', themes: ['etf', 'dividends'], sector: 'Index' },
-  { symbol: 'BTC',  name: 'Bitcoin',               type: 'crypto', currency: 'USD', themes: ['crypto'], sector: 'Crypto' },
-  { symbol: 'ETH',  name: 'Ethereum',              type: 'crypto', currency: 'USD', themes: ['crypto'], sector: 'Crypto' },
-];
+// Путь считаем от файла модуля, а не от cwd: сервер запускают и из корня
+// репозитория, и из systemd с любым рабочим каталогом.
+const BASE_PATH = fileURLToPath(new URL('../data/market_base.json', import.meta.url));
+
+/** Разобранный канонический файл. Читается один раз при загрузке модуля. */
+const BASE = JSON.parse(readFileSync(BASE_PATH, 'utf8'));
+
+/** Версия канонических данных — попадает в /health, чтобы было видно,
+ *  что именно раздаёт живой сервер (и совпадает ли с приложением). */
+export const MARKET_BASE_VERSION = BASE.version;
+
+export const THEMES = BASE.themes.map((t) => ({ id: t.id, title: t.title }));
+
+// freshness: 'realtime' | 'endOfDay' | 'demo' — честная метка происхождения
+// цены. Значения совпадают с именами enum QuoteFreshness в приложении
+// (models.dart разбирает их по имени). На синтетическом движке server.js
+// переопределяет всё на 'demo'; при реальном провайдере пойдёт значение
+// из канона. type: 'stock' | 'etf' | 'bondEtf' | 'crypto' | 'fiat'.
+export const ASSETS = BASE.assets.map((a) => ({
+  symbol: a.symbol,
+  name: a.name,
+  type: a.type,
+  currency: a.currency ?? 'USD',
+  themes: a.themes ?? [],
+  ...(a.sector ? { sector: a.sector } : {}),
+  freshness: a.freshness ?? 'realtime',
+}));
 
 // Быстрый доступ по символу — используется quotes.js для базовой цены.
 export const ASSET_BY_SYMBOL = Object.fromEntries(ASSETS.map((a) => [a.symbol, a]));
 
 // Базовая «якорная» цена в центах на символ — вокруг неё синтетический движок
-// строит блуждание. Реальные порядки величин, чтобы графики выглядели живыми.
-export const BASE_PRICE_CENTS = {
-  AAPL: 23400, MSFT: 42600, GOOGL: 18200, AMZN: 19500, NVDA: 12800,
-  META: 52000, TSLA: 24800, AMD: 16400, KO: 6300, JNJ: 15600,
-  PG: 16900, XOM: 11400, CVX: 15800, SPY: 56000, QQQ: 49000,
-  VOO: 51500, BTC: 6800000, ETH: 380000,
-};
+// строит блуждание. Те же числа, что видит игрок офлайн.
+export const BASE_PRICE_CENTS = Object.fromEntries(
+  BASE.assets.map((a) => [a.symbol, a.priceCents]),
+);
+
+// Дивиденд на акцию в центах — тоже из канона, а не «0.4% от цены наугад»:
+// иначе офлайн и онлайн начисляли РАЗНЫЕ суммы за одну и ту же выплату.
+export const DIVIDEND_PER_SHARE_CENTS = Object.fromEntries(
+  BASE.assets
+    .filter((a) => Number.isInteger(a.dividendPerShareCents) && a.dividendPerShareCents > 0)
+    .map((a) => [a.symbol, a.dividendPerShareCents]),
+);
 
 // Бумаги, по которым отдаём ближайшую синтетическую дивидендную выплату.
-export const DIVIDEND_SYMBOLS = new Set(['AAPL', 'MSFT', 'KO', 'JNJ', 'PG', 'XOM', 'CVX', 'VOO']);
+export const DIVIDEND_SYMBOLS = new Set(Object.keys(DIVIDEND_PER_SHARE_CENTS));
+
+/** Знаем ли мы такой символ. Единая проверка для всех эндпоинтов: неизвестный
+ *  тикер должен получать честную 404, а не выдуманную цену (см. quotes.js). */
+export function isKnownSymbol(symbol) {
+  return typeof symbol === 'string' && Object.hasOwn(ASSET_BY_SYMBOL, symbol);
+}

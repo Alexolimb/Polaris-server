@@ -1,0 +1,242 @@
+{
+  "version": "2026-07-25",
+  "note": "ЕДИНСТВЕННЫЙ ИСТОЧНИК ПРАВДЫ по каталогу, базовым ценам и дивидендам Polaris. Сервер (server/src/catalog.js) читает этот файл напрямую. Приложение получает его через сгенерированный файл app/lib/services/market_base.g.dart — после правки ЗДЕСЬ обязательно прогнать `node tools/sync_market_base.mjs`. Цены в ЦЕНТАХ (int), как во всём контракте v1. Идентификаторы тем совпадают с assets/content/themes.*.json приложения — по ним же работают ссылки 'попробовать' из уроков.",
+  "themes": [
+    { "id": "ai", "title": "Искусственный интеллект" },
+    { "id": "big-tech", "title": "Большие технологии" },
+    { "id": "semiconductors", "title": "Полупроводники" },
+    { "id": "dividend-giants", "title": "Дивидендные гиганты" },
+    { "id": "green-energy", "title": "Зелёная энергия" },
+    { "id": "ev", "title": "Электромобили" },
+    { "id": "health", "title": "Здоровье" },
+    { "id": "finance", "title": "Финансы" },
+    { "id": "consumer", "title": "Потребитель" },
+    { "id": "crypto-leaders", "title": "Криптолидеры" },
+    { "id": "broad-market", "title": "Широкий рынок (индексные ETF)" },
+    { "id": "bonds-safety", "title": "Облигации и надёжность" }
+  ],
+  "assets": [
+    {
+      "symbol": "AAPL", "name": "Apple Inc.", "type": "stock", "currency": "USD",
+      "sector": "Technology", "freshness": "realtime",
+      "themes": ["big-tech", "dividend-giants", "consumer"],
+      "priceCents": 23412, "prevCloseCents": 23180, "dividendPerShareCents": 26
+    },
+    {
+      "symbol": "MSFT", "name": "Microsoft", "type": "stock", "currency": "USD",
+      "sector": "Technology", "freshness": "realtime",
+      "themes": ["big-tech", "ai", "dividend-giants"],
+      "priceCents": 51230, "prevCloseCents": 50890, "dividendPerShareCents": 83
+    },
+    {
+      "symbol": "GOOGL", "name": "Alphabet (Google)", "type": "stock", "currency": "USD",
+      "sector": "Communication Services", "freshness": "realtime",
+      "themes": ["big-tech", "ai"],
+      "priceCents": 20510, "prevCloseCents": 20690
+    },
+    {
+      "symbol": "AMZN", "name": "Amazon", "type": "stock", "currency": "USD",
+      "sector": "Consumer Cyclical", "freshness": "realtime",
+      "themes": ["big-tech", "consumer"],
+      "priceCents": 24380, "prevCloseCents": 24010
+    },
+    {
+      "symbol": "NVDA", "name": "NVIDIA", "type": "stock", "currency": "USD",
+      "sector": "Technology", "freshness": "realtime",
+      "themes": ["ai", "big-tech", "semiconductors"],
+      "priceCents": 17650, "prevCloseCents": 17210
+    },
+    {
+      "symbol": "META", "name": "Meta Platforms", "type": "stock", "currency": "USD",
+      "sector": "Communication Services", "freshness": "realtime",
+      "themes": ["ai", "big-tech"],
+      "priceCents": 71540, "prevCloseCents": 72110
+    },
+    {
+      "symbol": "TSLA", "name": "Tesla", "type": "stock", "currency": "USD",
+      "sector": "Consumer Cyclical", "freshness": "realtime",
+      "themes": ["ev", "green-energy"],
+      "priceCents": 31220, "prevCloseCents": 32040
+    },
+    {
+      "symbol": "AMD", "name": "Advanced Micro Devices", "type": "stock", "currency": "USD",
+      "sector": "Technology", "freshness": "realtime",
+      "themes": ["ai", "semiconductors"],
+      "priceCents": 19840, "prevCloseCents": 19510
+    },
+    {
+      "symbol": "JPM", "name": "JPMorgan Chase", "type": "stock", "currency": "USD",
+      "sector": "Financial Services", "freshness": "realtime",
+      "themes": ["dividend-giants", "finance"],
+      "priceCents": 26150, "prevCloseCents": 26030, "dividendPerShareCents": 140
+    },
+    {
+      "symbol": "V", "name": "Visa", "type": "stock", "currency": "USD",
+      "sector": "Financial Services", "freshness": "realtime",
+      "themes": ["finance"],
+      "priceCents": 31890, "prevCloseCents": 31760, "dividendPerShareCents": 59
+    },
+    {
+      "symbol": "JNJ", "name": "Johnson & Johnson", "type": "stock", "currency": "USD",
+      "sector": "Healthcare", "freshness": "realtime",
+      "themes": ["dividend-giants", "health"],
+      "priceCents": 16240, "prevCloseCents": 16190, "dividendPerShareCents": 124
+    },
+    {
+      "symbol": "KO", "name": "Coca-Cola", "type": "stock", "currency": "USD",
+      "sector": "Consumer Defensive", "freshness": "realtime",
+      "themes": ["dividend-giants", "consumer"],
+      "priceCents": 7210, "prevCloseCents": 7180, "dividendPerShareCents": 51
+    },
+    {
+      "symbol": "PG", "name": "Procter & Gamble", "type": "stock", "currency": "USD",
+      "sector": "Consumer Defensive", "freshness": "realtime",
+      "themes": ["dividend-giants", "consumer"],
+      "priceCents": 17520, "prevCloseCents": 17580, "dividendPerShareCents": 101
+    },
+    {
+      "symbol": "XOM", "name": "Exxon Mobil", "type": "stock", "currency": "USD",
+      "sector": "Energy", "freshness": "realtime",
+      "themes": ["dividend-giants"],
+      "priceCents": 12470, "prevCloseCents": 12310, "dividendPerShareCents": 99
+    },
+    {
+      "symbol": "CVX", "name": "Chevron", "type": "stock", "currency": "USD",
+      "sector": "Energy", "freshness": "realtime",
+      "themes": ["dividend-giants"],
+      "priceCents": 16840, "prevCloseCents": 16720, "dividendPerShareCents": 175
+    },
+    {
+      "symbol": "DIS", "name": "Walt Disney", "type": "stock", "currency": "USD",
+      "sector": "Communication Services", "freshness": "realtime",
+      "themes": ["consumer"],
+      "priceCents": 11890, "prevCloseCents": 11750
+    },
+    {
+      "symbol": "NFLX", "name": "Netflix", "type": "stock", "currency": "USD",
+      "sector": "Communication Services", "freshness": "realtime",
+      "themes": ["consumer"],
+      "priceCents": 128740, "prevCloseCents": 127210
+    },
+    {
+      "symbol": "NEE", "name": "NextEra Energy", "type": "stock", "currency": "USD",
+      "sector": "Utilities", "freshness": "realtime",
+      "themes": ["green-energy", "dividend-giants"],
+      "priceCents": 8460, "prevCloseCents": 8390, "dividendPerShareCents": 57
+    },
+    {
+      "symbol": "FSLR", "name": "First Solar", "type": "stock", "currency": "USD",
+      "sector": "Technology", "freshness": "realtime",
+      "themes": ["green-energy"],
+      "priceCents": 27390, "prevCloseCents": 26840
+    },
+    {
+      "symbol": "ASML", "name": "ASML Holding", "type": "stock", "currency": "USD",
+      "sector": "Technology", "freshness": "endOfDay",
+      "themes": ["ai", "semiconductors"],
+      "priceCents": 112450, "prevCloseCents": 111200, "dividendPerShareCents": 160
+    },
+    {
+      "symbol": "TM", "name": "Toyota Motor", "type": "stock", "currency": "USD",
+      "sector": "Consumer Cyclical", "freshness": "endOfDay",
+      "themes": ["ev", "consumer"],
+      "priceCents": 21230, "prevCloseCents": 21340, "dividendPerShareCents": 120
+    },
+    {
+      "symbol": "SPY", "name": "S&P 500 (SPDR)", "type": "etf", "currency": "USD",
+      "sector": "Index", "freshness": "realtime",
+      "themes": ["broad-market"],
+      "priceCents": 63840, "prevCloseCents": 63510, "dividendPerShareCents": 180
+    },
+    {
+      "symbol": "VOO", "name": "S&P 500 (Vanguard)", "type": "etf", "currency": "USD",
+      "sector": "Index", "freshness": "realtime",
+      "themes": ["broad-market", "dividend-giants"],
+      "priceCents": 58720, "prevCloseCents": 58410, "dividendPerShareCents": 172
+    },
+    {
+      "symbol": "QQQ", "name": "Nasdaq 100 (Invesco)", "type": "etf", "currency": "USD",
+      "sector": "Index", "freshness": "realtime",
+      "themes": ["broad-market", "big-tech"],
+      "priceCents": 56210, "prevCloseCents": 55840, "dividendPerShareCents": 68
+    },
+    {
+      "symbol": "VTI", "name": "Весь рынок США (Vanguard)", "type": "etf", "currency": "USD",
+      "sector": "Index", "freshness": "realtime",
+      "themes": ["broad-market"],
+      "priceCents": 31240, "prevCloseCents": 31090, "dividendPerShareCents": 95
+    },
+    {
+      "symbol": "SCHD", "name": "Дивидендные акции США (Schwab)", "type": "etf", "currency": "USD",
+      "sector": "Index", "freshness": "realtime",
+      "themes": ["dividend-giants"],
+      "priceCents": 8940, "prevCloseCents": 8910, "dividendPerShareCents": 74
+    },
+    {
+      "symbol": "ICLN", "name": "Чистая энергетика (iShares)", "type": "etf", "currency": "USD",
+      "sector": "Index", "freshness": "realtime",
+      "themes": ["green-energy"],
+      "priceCents": 3120, "prevCloseCents": 3060
+    },
+    {
+      "symbol": "BND", "name": "Облигации США (Vanguard)", "type": "bondEtf", "currency": "USD",
+      "sector": "Bonds", "freshness": "realtime",
+      "themes": ["bonds-safety"],
+      "priceCents": 7480, "prevCloseCents": 7490, "dividendPerShareCents": 18
+    },
+    {
+      "symbol": "TLT", "name": "Долгие гособлигации США (iShares)", "type": "bondEtf", "currency": "USD",
+      "sector": "Bonds", "freshness": "realtime",
+      "themes": ["bonds-safety"],
+      "priceCents": 9210, "prevCloseCents": 9270, "dividendPerShareCents": 29
+    },
+    {
+      "symbol": "BTC", "name": "Bitcoin", "type": "crypto", "currency": "USD",
+      "freshness": "realtime",
+      "themes": ["crypto-leaders"],
+      "priceCents": 11842000, "prevCloseCents": 11731000
+    },
+    {
+      "symbol": "ETH", "name": "Ethereum", "type": "crypto", "currency": "USD",
+      "freshness": "realtime",
+      "themes": ["crypto-leaders"],
+      "priceCents": 642000, "prevCloseCents": 631500
+    },
+    {
+      "symbol": "SOL", "name": "Solana", "type": "crypto", "currency": "USD",
+      "freshness": "realtime",
+      "themes": ["crypto-leaders"],
+      "priceCents": 21400, "prevCloseCents": 22150
+    },
+    {
+      "symbol": "ADA", "name": "Cardano", "type": "crypto", "currency": "USD",
+      "freshness": "realtime",
+      "themes": ["crypto-leaders"],
+      "priceCents": 92, "prevCloseCents": 90
+    },
+    {
+      "symbol": "EUR", "name": "Евро (за 100 EUR)", "type": "fiat", "currency": "USD",
+      "freshness": "endOfDay",
+      "themes": [],
+      "priceCents": 10923, "prevCloseCents": 10896
+    },
+    {
+      "symbol": "GBP", "name": "Британский фунт (за 100 GBP)", "type": "fiat", "currency": "USD",
+      "freshness": "endOfDay",
+      "themes": [],
+      "priceCents": 12704, "prevCloseCents": 12651
+    },
+    {
+      "symbol": "CHF", "name": "Швейцарский франк (за 100 CHF)", "type": "fiat", "currency": "USD",
+      "freshness": "endOfDay",
+      "themes": [],
+      "priceCents": 11215, "prevCloseCents": 11168
+    },
+    {
+      "symbol": "JPY", "name": "Японская иена (за 100 JPY)", "type": "fiat", "currency": "USD",
+      "freshness": "endOfDay",
+      "themes": [],
+      "priceCents": 68, "prevCloseCents": 67
+    }
+  ]
+}
