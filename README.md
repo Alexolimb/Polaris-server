@@ -1,58 +1,57 @@
-# Polaris — сервер (бэкенд)
+# Polaris server — backend
 
-Бэкенд приложения [Polaris](../app) по контракту **v1**: рыночные данные + AI-наставник
-**Cosmo**. Написан на чистом Node.js (`node:http`, встроенный `fetch`) — **ноль внешних
-зависимостей**, поэтому разворачивается и тестируется где угодно без `npm install`.
+Backend for the [Polaris](https://github.com/Alexolimb/Polaris) investment simulator, implementing
+the **v1** contract: market data plus the "Cosmo" AI mentor.
 
-> Пересобран 24.07.2026 после того, как исходный `server/` был потерян в аварии.
-> Контракт восстановлен по клиенту (`app/lib/services/api.dart`, `ai.dart`).
+Written in **plain Node.js** (`node:http`, built-in `fetch`) with **zero external dependencies** —
+it runs and tests anywhere without `npm install`.
 
-## Что отдаёт
-| Метод | Путь | Ответ |
+## API
+
+| Method | Path | Response |
 |---|---|---|
-| GET | `/health` | `{ok, ai}` — жив ли сервер, подключён ли Cosmo |
-| GET | `/v1/assets` | каталог активов + темы (`freshness:"demo"`) |
-| GET | `/v1/quotes?symbols=AAPL,MSFT` | котировки (цены в **центах**, int) |
-| GET | `/v1/candles?symbol=AAPL&range=1d\|1w\|1m\|1y` | свечи |
-| GET | `/v1/dividends?symbol=AAPL` | ближайшая дивидендная выплата |
-| POST | `/v1/ai/chat` | **SSE**-стрим Cosmo: `data:{"delta":…}` … `data:[DONE]` |
-| POST | `/v1/ai/trade-comment` | `{comment}` — короткая реакция на сделку |
+| GET | `/health` | `{ok, ai}` — server alive, AI backend reachable |
+| GET | `/v1/assets` | Asset catalogue and themes (`freshness: "demo"`) |
+| GET | `/v1/quotes?symbols=AAPL,MSFT` | Quotes — prices as **integer cents** |
+| GET | `/v1/candles?symbol=AAPL&range=1d\|1w\|1m\|1y` | OHLC candles |
+| GET | `/v1/dividends?symbol=AAPL` | Next dividend payment |
+| POST | `/v1/ai/chat` | **SSE** stream: `data:{"delta":…}` … `data:[DONE]` |
+| POST | `/v1/ai/trade-comment` | `{comment}` — short reaction to a trade |
 
-## Данные
-- **Рыночные данные — синтетические** (`src/quotes.js`): детерминированный сид-шум по символу
-  и времени. Честно помечены `freshness:"demo"`. Это осознанный выбор: бэкенд поднимается БЕЗ
-  платного биржевого фида (правило «только бесплатное»). Точка расширения на реальный
-  бесплатный провайдер (напр. Finnhub free) размечена внизу `quotes.js` — контракт функций
-  менять не нужно.
-- **Cosmo — бесплатная Groq** (`src/ai.js`), модель `llama-3.3-70b-versatile`. Cosmo — чат-наставник
-  без инструментов, промпт запрещает персональные инвестсоветы и обещания доходности.
+## Design decisions
 
-## Конфигурация (только окружение — секретов в коде нет)
-Скопируй `.env.example` → `.env`:
+- **Market data is synthetic** (`src/quotes.js`): deterministic seeded noise per symbol and
+  timestamp, honestly flagged as `freshness: "demo"`. This is deliberate — the backend runs with no
+  paid market-data feed. The extension point for a real free provider (e.g. Finnhub free tier) is
+  marked at the bottom of `quotes.js`; the function contracts do not change.
+- **Cosmo runs on a free LLM tier** (`src/ai.js`), model `llama-3.3-70b-versatile` via Groq. It is a
+  chat mentor without tools; the system prompt forbids personalised investment advice and any
+  promise of returns.
+- **Prices are integers.** Cents everywhere, never floats — the client's simulation core makes the
+  same choice, so no rounding drift between app and server.
+
+## Configuration
+
+Secrets live in the environment only — none in code. Copy `.env.example` to `.env`:
+
 ```
 PORT=8787
-GROQ_API_KEY=<ключ с https://console.groq.com/keys>   # без него котировки работают, Cosmo → 503
-GROQ_MODEL=                                            # необязательно, дефолт llama-3.3-70b-versatile
+GROQ_API_KEY=<key from https://console.groq.com/keys>   # without it quotes still work, Cosmo returns 503
+GROQ_MODEL=                                             # optional, defaults to llama-3.3-70b-versatile
 ```
 
-## Запуск и тесты
+## Run and test
+
 ```bash
-npm start          # node src/index.js  → слушает :PORT
-npm test           # node --test        → 22 теста, все зелёные (24.07.2026)
+npm start          # node src/index.js  -> listens on :PORT
+npm test           # node --test        -> 22 tests, all green
 ```
-Без `npm install` — зависимостей нет. Нужен Node ≥ 18 (на машине — Node 24).
 
-## Деплой (когда Алекс даст добро)
-Сервер стейтлес, слушает `PORT`. Варианты:
-1. **Hetzner (рядом с n8n)** — рекомендуется, инфраструктура уже есть:
-   `pm2 start src/index.js --name polaris` + reverse-proxy (Caddy/Nginx) на HTTPS-домен,
-   `GROQ_API_KEY` в env. Затем прописать этот URL в `app/lib/services/api.dart` (`defaultBaseUrl`).
-2. **Любой Node-хостинг** (Render/Railway/Fly free tier) — задать `GROQ_API_KEY`, `PORT`.
-3. Cloudflare Worker — потребует лёгкой адаптации `node:http` → `fetch handler` (SSE отдавать
-   через `TransformStream`); логика `quotes.js`/`ai.js` переносится как есть.
+No `npm install` needed. Requires Node ≥ 18.
 
-> ⚠️ Деплой = внешнее действие: делаем только по явному согласию Алекса и с его ключом/аккаунтом.
+## Deployment
 
-## Резервные копии
-git (этот репозиторий) · `F:\BACKUP_CODE\<дата>\polaris-server` · приватный GitHub *(TODO)*.
-Паспорт продукта: `Brain\obsidian\Projects\Polaris — инвест-симулятор.md`.
+The server is stateless and listens on `PORT`. It runs as-is on any Node host (Render, Railway,
+Fly, a plain VPS behind Caddy/Nginx for HTTPS) with `GROQ_API_KEY` set in the environment. Porting
+to a Cloudflare Worker needs only the `node:http` entry point swapped for a `fetch` handler, with
+SSE emitted through a `TransformStream` — `quotes.js` and `ai.js` carry over unchanged.
