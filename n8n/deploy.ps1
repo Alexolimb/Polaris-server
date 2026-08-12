@@ -1,7 +1,7 @@
-# Заливка пропатченного воркфлоу polaris-api на боевой n8n.
-# Ключ НЕ хранится в этом файле (он в публично-синкаемом репозитории быть не
-# должен). Берём из переменной окружения N8N_API_KEY, а если её нет — из
-# приватной папки Brain\Claud (там же, где живёт реестр сервера).
+﻿# Заливка пропатченного воркфлоу polaris-api на боевой n8n.
+# Ключ НЕ хранится в этом файле и не должен попадать в репозиторий.
+# Берём из переменной окружения N8N_API_KEY. Если ключ лежит в локальном
+# файле — задай путь к нему в переменной N8N_KEY_FILE.
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 
@@ -11,20 +11,11 @@ $PAYLOAD = Join-Path $PSScriptRoot 'polaris-api.PUT-payload.json'
 
 function Get-ApiKey {
   if ($env:N8N_API_KEY) { return $env:N8N_API_KEY }
-  $reg = 'C:\Users\ADMiN_Lenovo\Desktop\Brain\Claud\n8n_server_registry.md'
-  if (Test-Path $reg) {
-    # ключ лежит в реестре внутри блока ``` ``` сразу после строки про Public API key
-    $lines = Get-Content $reg -Encoding UTF8
-    for ($i = 0; $i -lt $lines.Count; $i++) {
-      if ($lines[$i] -match 'Public API key') {
-        for ($j = $i; $j -lt [Math]::Min($i + 6, $lines.Count); $j++) {
-          $t = $lines[$j].Trim()
-          if ($t.StartsWith('eyJ')) { return $t }
-        }
-      }
-    }
+  if ($env:N8N_KEY_FILE -and (Test-Path $env:N8N_KEY_FILE)) {
+    $key = (Get-Content $env:N8N_KEY_FILE -Encoding UTF8 -Raw).Trim()
+    if ($key) { return $key }
   }
-  throw 'не нашёл ключ n8n: задай $env:N8N_API_KEY или проверь Brain\Claud\n8n_server_registry.md'
+  throw 'не нашёл ключ n8n: задай $env:N8N_API_KEY или $env:N8N_KEY_FILE с путём к файлу ключа'
 }
 
 if (-not (Test-Path $PAYLOAD)) { throw "нет файла payload: $PAYLOAD" }
