@@ -47,7 +47,7 @@ GROQ_MODEL=                                             # optional, defaults to 
 
 ```bash
 npm start          # node src/index.js  -> listens on :PORT
-npm test           # node --test        -> 22 tests, all green
+npm test           # node --test        -> 41 tests, all green
 ```
 
 No `npm install` needed. Requires Node ≥ 18.
